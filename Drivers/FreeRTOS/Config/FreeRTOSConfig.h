@@ -52,12 +52,10 @@
 #define configUSE_TICK_HOOK							0
 #define configCPU_CLOCK_HZ							( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ							( ( TickType_t ) 1000 )
-//#define configMINIMAL_STACK_SIZE					( ( unsigned short ) 128 )
-#define configMINIMAL_STACK_SIZE					512
+#define configMINIMAL_STACK_SIZE					256
 #define configTOTAL_HEAP_SIZE						( ( size_t ) ( 8*1024 ) )
 #define configMAX_TASK_NAME_LEN						( 16 )
 #define configUSE_TRACE_FACILITY					0
-//#define configCHECK_FOR_STACK_OVERFLOW	0
 #define configUSE_16_BIT_TICKS						0
 #define configIDLE_SHOULD_YIELD						1
 #define configUSE_CO_ROUTINES						0
@@ -89,9 +87,5 @@ to exclude the API function. */
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191 /* equivalent to 0xa0, or priority 5. */
-
-//#define vPortSVCHandler                                         SVC_Handler
-//#define xPortPendSVHandler                                      PendSV_Handler
-//#define xPortSysTickHandler                                     SysTick_Handler
 
 #endif /* FREERTOS_CONFIG_H */
