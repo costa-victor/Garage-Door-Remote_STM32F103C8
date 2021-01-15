@@ -90,7 +90,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-
+  HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);	// Start with LED OFF
   FSM_Start();
 
 
@@ -214,11 +214,23 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
 
-
+/* Callback function called on HAL_GPIO_EXTI_IRQHandler */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if(GPIO_Pin == OPEN_BUTTON_Pin){
+		xSemaphoreGive(xSemaphoreB1);
+	}
+	else if(GPIO_Pin == CLOSE_BUTTON_Pin){
+		xSemaphoreGive(xSemaphoreB2);
+	}
+}
 /* USER CODE END 4 */
 
 /**

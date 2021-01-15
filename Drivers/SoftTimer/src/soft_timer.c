@@ -7,24 +7,18 @@
 
 #include "soft_timer.h"
 
-/* ================= Callback functions ================= */
-void vTimerCallbackC(TimerHandle_t xTimer){
-
-}
-
+/* ================= Callback function ================= */
 void vTimerCallbackR(TimerHandle_t xTimer){
-
+	xSemaphoreGive(xSemaphoreC);
 }
 
 /* ================= Functions ================= */
 void SoftTimer_Init(fsm_t *fsm){
-	xTimerC = xTimerCreateStatic(
-                "TimerC",
-                fsm->time_c,
-                pdFALSE,
-                ( void * ) 0,
-                vTimerCallbackC,
-                &xTimerBufferC);
+
+	xSemaphoreB1 = xSemaphoreCreateBinaryStatic(&xSemaphoreBufferB1);
+	xSemaphoreB2 = xSemaphoreCreateBinaryStatic(&xSemaphoreBufferB2);
+	xSemaphoreC  = xSemaphoreCreateBinaryStatic(&xSemaphoreBufferC);
+	xSemaphoreS  = xSemaphoreCreateBinaryStatic(&xSemaphoreBufferS);
 
 	xTimerR = xTimerCreateStatic(
                 "TimerR",
@@ -34,35 +28,27 @@ void SoftTimer_Init(fsm_t *fsm){
                 vTimerCallbackR,
                 &xTimerBufferR);
 
-	if((xTimerC == NULL) || (xTimerR == NULL)){
-		vTaskSuspend( NULL );		// Suspend this task
-	}
 }
 
 void SoftTimer_Start(TimerHandle_t xTimer, fsm_t *fsm){
-	const char *xTimerName 		= pcTimerGetName(xTimer);
-	const char *xTimerCName 	= pcTimerGetName(xTimerC);
-	const char *xTimerRName 	= pcTimerGetName(xTimerR);
-
-	if(xTimerName[5] == xTimerCName[5]){
-		xTimerChangePeriod( xTimer, fsm->time_c , 100 );
-	}
-	if(xTimerName[5] == xTimerRName[5]){
-
-	}
+	/* ChangePeriod calls xTimerStart internally */
+	xTimerChangePeriod( xTimer, fsm->time_r , (TickType_t)0 );
 }
 
 void SoftTimer_Stop(TimerHandle_t xTimer, fsm_t *fsm){
-	const char *xTimerName 		= pcTimerGetName(xTimer);
-	const char *xTimerCName 	= pcTimerGetName(xTimerC);
-	const char *xTimerRName 	= pcTimerGetName(xTimerR);
+	xTimerStop( xTimerR, 100 );
 
-	if(xTimerName[5] == xTimerCName[5]){
-		xTimerStop( xTimerC, 100 );
-		fsm->time_r = xTimerGetExpiryTime( xTimerC ) - xTaskGetTickCount();
-	}
-	if(xTimerName[5] == xTimerRName[5]){
-		xTimerStop( xTimerR, 100 );
+	/* In this state, i can close or open it. So i need to know when
+	 * opening/closing time has passed before i got here
+	 */
+	if(xSemaphoreTake(xSemaphoreB1, (TickType_t)0) == pdPASS){
 		fsm->time_r = xTimerGetExpiryTime( xTimerR ) - xTaskGetTickCount();
+	}
+	else{
+		if(xSemaphoreTake(xSemaphoreB2, (TickType_t)0) == pdPASS){
+			uint16_t remainingToOpen;
+			remainingToOpen = xTimerGetExpiryTime( xTimerR ) - xTaskGetTickCount();
+			fsm->time_r = fsm->time_c - remainingToOpen;
+		}
 	}
 }

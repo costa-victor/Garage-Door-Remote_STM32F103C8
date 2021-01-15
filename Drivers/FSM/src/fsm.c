@@ -6,36 +6,120 @@
  */
 
 #include <fsm.h>
-
+#include "main.h"
 
 static void ClosedAction(fsm_t *fsm){
-	fsm->state = Opening;
+	if(xSemaphoreTake(xSemaphoreB1, (TickType_t)0) == pdPASS){
+		// Blink
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_ON);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+
+		fsm->prevState	= Closed;
+		fsm->state 		= Opening;
+
+		fsm->time_r = fsm->time_c;
+		SoftTimer_Start(xTimerR, fsm);
+	}
 }
 
 static void OpeningAction(fsm_t *fsm){
-	fsm->state = Opened;
+	if(xSemaphoreTake(xSemaphoreB1, (TickType_t)0) == pdPASS){
+		xSemaphoreGive(xSemaphoreB1);
+		SoftTimer_Stop(xTimerR, fsm);
+		fsm->prevState	= Opening;
+		fsm->state 		= Stopped;
+	}
+	else if(xSemaphoreTake(xSemaphoreS, (TickType_t)0) == pdPASS){
+		fsm->prevState	= Opening;
+		fsm->state 		= Stopped;
+	}
+	else if(xSemaphoreTake(xSemaphoreC, (TickType_t)0) == pdPASS){
+			fsm->prevState	= Opening;
+			fsm->state 		= Opened;
+
+			// Led off when completely openned
+			HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+	}
+
+	// Led on while the gate is opening
+	HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_ON);
 }
 
 static void OpenedAction(fsm_t *fsm){
-	fsm->state = Closing;
+	if(xSemaphoreTake(xSemaphoreB2, (TickType_t)0) == pdPASS){
+		// Blink
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_ON);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
 
+		fsm->prevState	= Opened;
+		fsm->state 		= Closing;
+
+		fsm->time_r = fsm->time_c;
+		SoftTimer_Start(xTimerR, fsm);
+	}
 }
 
 static void ClosingAction(fsm_t *fsm){
-	fsm->state = Closed;
+	if(xSemaphoreTake(xSemaphoreB2, (TickType_t)0) == pdPASS){
+		xSemaphoreGive(xSemaphoreB2);
+		SoftTimer_Stop(xTimerR, fsm);
+		fsm->prevState	= Closing;
+		fsm->state 		= Stopped;
+	}
+	else if(xSemaphoreTake(xSemaphoreS, (TickType_t)0) == pdPASS){
+		fsm->prevState	= Closing;
+		fsm->state 		= Stopped;
+	}
+	else if(xSemaphoreTake(xSemaphoreC, (TickType_t)0) == pdPASS){
+			fsm->prevState	= Closing;
+			fsm->state 		= Closed;
+	}
 
+	// Led off while the gate is opening
+	HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
 }
 
 static void StoppedAction(fsm_t *fsm){
+	if(xSemaphoreTake(xSemaphoreB1, (TickType_t)0) == pdPASS){
+		fsm->prevState	= Stopped;
+		fsm->state 		= Opening;
+		SoftTimer_Start(xTimerR, fsm);
+
+		xSemaphoreGive(xSemaphoreS);
+	}
+	else{
+		if(xSemaphoreTake(xSemaphoreB2, (TickType_t)0) == pdPASS){
+			fsm->prevState	= Stopped;
+			fsm->state 		= Closing;
+			SoftTimer_Start(xTimerR, fsm);
+
+			xSemaphoreGive(xSemaphoreS);
+		}
+	}
+
+	// Led blinks continuously
+	HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+	vTaskDelay(100);
+	HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_ON);
+	vTaskDelay(100);
+	HAL_GPIO_WritePin(BUILTIN_LED_GPIO_Port, BUILTIN_LED_Pin, LED_OFF);
+
 }
 
 void FSM_Init(fsm_t *fsm){
 	/* Initial gate state */
-	fsm->state 	= Closed;
+	fsm->prevState	= Closed;
+	fsm->state 		= Closed;
 
 	/* Initial time in ms */
-	fsm->time_c = 3000;
-	fsm->time_r	= 3000;
+	fsm->time_c = 5000;
+	fsm->time_r	= fsm->time_c;
 
 	/* Action functions related to their respective states */
 	fsm->action[Closed]		= ClosedAction;
@@ -71,6 +155,7 @@ void FSM_Task( void *param )
 
     for(;;){
     	FSM_Execute(&fsm_var);
+    	vTaskDelay(100);
     }
  }
 

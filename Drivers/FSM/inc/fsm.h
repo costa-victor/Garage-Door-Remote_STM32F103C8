@@ -17,7 +17,7 @@
 #define QUEUE_LENGTH    10
 #define ITEM_SIZE       sizeof( BaseType_t )
 #define tskPriority 	(UBaseType_t)(tskIDLE_PRIORITY + 5)
-#define STACK_SIZE 512
+#define STACK_SIZE 		512
 
 
 /* ================= Data types ================= */
@@ -33,6 +33,7 @@ typedef struct StateMachine fsm_t;
 typedef void (*action_t)(fsm_t *fsm);
 
 struct StateMachine{
+	gate_state prevState;		/* Holds the previous state of FSM */
 	gate_state state;		/* Holds the current state of FSM */
 	action_t action[5];		/* Function pointer to the action to be performed */
 	uint16_t time_c;		/* Holds the time to open/close completely from open/close state*/
@@ -54,7 +55,7 @@ fsm_t fsm_var;												/* Instance of state machine */
 void FSM_Init(fsm_t *fsm);
 void FSM_Start();
 extern void SoftTimer_Init(fsm_t *fsm);
-extern void SoftTimer_Star(TimerHandle_t xTimer, fsm_t *fsm);
+extern void SoftTimer_Start(TimerHandle_t xTimer, fsm_t *fsm);
 extern void SoftTimer_Stop(TimerHandle_t xTimer, fsm_t *fsm);
 
 
